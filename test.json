@@ -1,0 +1,10 @@
+{
+  "Buildings": {
+    "names": ["Buildings"],
+    "github": "lbl-srg/modelica-buildings",
+    "support": [
+      [">=5.1.0", "support"],
+      ["*", "obsolete"]
+    ]
+  }
+}
