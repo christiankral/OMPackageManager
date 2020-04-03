@@ -6,41 +6,12 @@ from github import Github
 import json
 import pygit2
 import glob
-import semantic_version
 
-def VersionNumber(s):
-  if s.startswith("v"):
-    s = s[1:]
-  return semantic_version.Version.coerce(s)
+import common
 
 def removerepo(ghurl, repopath):
   print("Removing repository " + ghurl)
   os.path.rmtree(repopath)
-
-def findMatchingLevel(s, levels):
-  try:
-    vn = VersionNumber(s)
-  except:
-    return
-  for level in levels:
-    matched = False
-    if level[0] == "*":
-      matched = True
-    elif level[0].startswith(">=") and vn >= VersionNumber(level[0][2:]):
-      matched = True
-    elif level[0] == s:
-      matched = True
-    if matched:
-      return level[1]
-  return
-
-def getSupportLevel(tagName, levels):
-  res = findMatchingLevel(tagName, levels)
-  if res is None:
-    return "noSupport"
-  if res not in ["fullSupport", "support", "experimental", "obsolete", "unknown", "noSupport"]:
-    return "noSupport"
-  return res
 
 def main():
   gh_auth = os.environ["GITHUB_AUTH"]
@@ -48,9 +19,9 @@ def main():
 
   omc = OMPython.OMCSessionZMQ()
 
-  data = json.load(open("test.json"))
-  if os.path.exists("server.json"):
-    serverdata = json.load(open("server.json"))
+  data = json.load(open("repos.json"))
+  if os.path.exists("rawdata.json"):
+    serverdata = json.load(open("rawdata.json"))
   else:
     serverdata = {}
 
@@ -72,8 +43,8 @@ def main():
       if key not in serverdata:
         serverdata[key] = {}
         print("Did not have stored data for " + key)
-      if "tags" not in serverdata[key]:
-        serverdata[key]["tags"] = {}
+      if "refs" not in serverdata[key]:
+        serverdata[key]["refs"] = {}
       ignoreTags = set()
       if "ignore-tags" in entry:
         ignoreTags = set(entry["ignore-tags"])
@@ -87,7 +58,7 @@ def main():
         if t.name not in ignoreTags:
           objects.append((t.name, t.commit.sha))
 
-      tagsDict = serverdata[key]["tags"]
+      tagsDict = serverdata[key]["refs"]
       repopath = os.path.join("cache", key)
 
       for (tagName, sha) in objects:
@@ -126,7 +97,7 @@ def main():
               continue
             omc.sendExpression("clear()")
             if "standard" in entry:
-              grammar = findMatchingLevel(tagName, entry["standard"])
+              grammar = common.findMatchingLevel(tagName, entry["standard"])
               if grammar is None:
                 grammar = "latest"
             else:
@@ -134,7 +105,7 @@ def main():
             omc.sendExpression("setCommandLineOptions(\"--std=%s\")" % grammar)
 
             if not omc.sendExpression("loadFile(\"%s\")" % hits[0]):
-              print("Failed to load file %s in %s" % (hits[0], tagName)) # OMJulia.sendExpression(omc, "OpenModelica.Scripting.getErrorString()"))
+              print("Failed to load file %s in %s" % (hits[0], tagName))
               continue
             classNamesAfterLoad = omc.sendExpression("getClassNames()")
             if libname not in classNamesAfterLoad:
@@ -142,21 +113,27 @@ def main():
               print(classNamesAfterLoad)
               continue
             version = omc.sendExpression("getVersion(%s)" % libname)
-            version = str(VersionNumber(tagName) if version == "" else VersionNumber(version))
-            uses = sorted([[e[0],str(VersionNumber(e[1]))] for e in omc.sendExpression("getUses(%s)" % libname)])
+            version = str(common.VersionNumber(tagName) if version == "" else common.VersionNumber(version))
+            uses = sorted([[e[0],str(common.VersionNumber(e[1]))] for e in omc.sendExpression("getUses(%s)" % libname)])
             # Get conversions
-            provided[libname] = {"version": version, "uses": uses}
+            (withoutConversion,withConversion) = omc.sendExpression("getConversionsFromVersions(%s)" % libname)
+            withoutConversion = list(filter(None, [str(ver) for ver in sorted([common.VersionNumber(v) for v in withoutConversion])]))
+            withConversion = list(filter(None, [str(ver) for ver in sorted([common.VersionNumber(v) for v in withConversion])]))
+            path = hits[0][len(repopath)+1:]
+            if os.path.basename(hits[0]) == "package.mo":
+              path = os.path.dirname(path)
+            provided[libname] = {"version": version, "uses": uses, "provides": withoutConversion, "convertFromVersion": withConversion, "path": path}
           if len(provided) == 0:
             print("Broken for " + key + " " + tagName)
             thisTag["broken"]=True
             continue
           thisTag["libs"] = provided
           thisTag["sha"] = sha
-        level = getSupportLevel(tagName, entry["support"])
-        thisTag["support"] = level
-      serverdata[key]["tags"] = tagsDict
+        # level = getSupportLevel(tagName, entry["support"])
+        # thisTag["support"] = level
+      serverdata[key]["refs"] = tagsDict
 
-  with open("server.json","w") as io:
+  with open("rawdata.json","w") as io:
     json.dump(serverdata, io, sort_keys=True, indent=2)
 if __name__ == '__main__':
   main()
