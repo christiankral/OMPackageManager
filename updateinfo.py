@@ -62,6 +62,11 @@ def main():
       repopath = os.path.join("cache", key)
 
       for (tagName, sha) in objects:
+        v = common.VersionNumber(tagName)
+        # v3.2.1+build.0-beta.1 is not a pre-release...
+        for build in v.build:
+          if "-" in build:
+            raise Exception("Release build string looks like a pre-release: %s" % v)
         if tagName not in tagsDict:
           tagsDict[tagName] = {}
         thisTag = tagsDict[tagName]
@@ -113,7 +118,15 @@ def main():
               print(classNamesAfterLoad)
               continue
             version = omc.sendExpression("getVersion(%s)" % libname)
-            version = str(common.VersionNumber(tagName) if version == "" else common.VersionNumber(version))
+            if version == "":
+              version = str(common.VersionNumber(tagName))
+            else:
+              v1 = common.VersionNumber(version)
+              v2 = common.VersionNumber(tagName)
+              if v1.major == v2.major and v1.minor == v2.minor and v1.patch == v2.patch and len(v1.prerelease) == 0 and len(v1.build) == 0:
+                version = str(v2)
+              else:
+                version = str(v1)
             uses = sorted([[e[0],str(common.VersionNumber(e[1]))] for e in omc.sendExpression("getUses(%s)" % libname)])
             # Get conversions
             (withoutConversion,withConversion) = omc.sendExpression("getConversionsFromVersions(%s)" % libname)
@@ -122,7 +135,14 @@ def main():
             path = hits[0][len(repopath)+1:]
             if os.path.basename(hits[0]) == "package.mo":
               path = os.path.dirname(path)
-            provided[libname] = {"version": version, "uses": uses, "provides": withoutConversion, "convertFromVersion": withConversion, "path": path}
+            libentry = {"version": version, "path": path}
+            if len(uses)>0:
+              libentry["uses"] = dict(uses)
+            if len(withoutConversion)>0:
+              libentry["provides"] = withoutConversion
+            if len(withConversion)>0:
+              libentry["convertFromVersion"] = withConversion
+            provided[libname] = libentry
           if len(provided) == 0:
             print("Broken for " + key + " " + tagName)
             thisTag["broken"]=True

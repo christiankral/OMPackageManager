@@ -1,8 +1,9 @@
-{
+ {
   "Buildings": {
     "names": ["Buildings"],
     "github": "lbl-srg/modelica-buildings",
     "support": [
+      ["prerelease", "noSupport"],
       [">=5.1.0", "support"],
       ["*", "obsolete"]
     ]
@@ -16,7 +17,10 @@
       "maint/3.1": "v3.1.0+maint"
     },
     "ignore-tags": [
-      "v2.1", "v2.2", "v2.2.1", "v2.2.2", "v3.1"
+      "v2.1", "v2.2", "v2.2.1", "v2.2.2", "v3.1",
+      "v3.2.3+build.3-rc.1",
+      "v3.2.3+build.3-beta.1",
+      "v3.2.3+build.4-beta.1"
     ],
     "standard": [
       [">=3.4.0", "latest"],
@@ -28,7 +32,9 @@
       ["*", "latest"]
     ],
     "support": [
-      [">=3.2.3", "support"],
+      ["prerelease", "noSupport"],
+      [">=4.0.0", "support"],
+      [">=3.2.3", "fullSupport"],
       ["*", "obsolete"]
     ]
   }

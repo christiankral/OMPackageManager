@@ -17,7 +17,9 @@ def findMatchingLevel(s, levels):
     return
   for level in levels:
     matched = False
-    if level[0] == "*":
+    if level[0] == "prerelease" and len(vn.prerelease)>0:
+      return level[1]
+    elif level[0] == "*":
       return level[1]
     elif level[0].startswith(">=") and vn >= VersionNumber(level[0][2:]):
       return level[1]
