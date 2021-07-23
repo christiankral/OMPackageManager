@@ -284,9 +284,10 @@
   "ElectroMechanicalDrives": {
     "names": ["ElectroMechanicalDrives"],
     "github": "christiankral/ElectroMechanicalDrives",
+    "branches": {"master": "master"},
     "support": [
       ["prerelease", "noSupport"],
-      [">=2.2.0", "experimental"],
+      [">=2.4.0", "support"],
       ["*", "obsolete"]
     ]
   },
